@@ -258,83 +258,57 @@
         
         var par = stack.pop()
 
-        if (curr.uid)
-        {
-        	// If this is the first time we run into this UID, just save it.
-        	if (par[curr.uid] === undefined)
+        // assign random uuid as curr.uid not unique
+        var UUID = require('node-uuid');
+        const uuid = UUID.v4()
+        par[uuid] = curr;
+        
+          // If we have recurrence-id entries, list them as an array of recurrences keyed off of recurrence-id.
+          // To use - as you're running through the dates of an rrule, you can try looking it up in the recurrences
+          // array.  If it exists, then use the data from the calendar object in the recurrence instead of the parent
+          // for that day.
+
+          // NOTE:  Sometimes the RECURRENCE-ID record will show up *before* the record with the RRULE entry.  In that
+          // case, what happens is that the RECURRENCE-ID record ends up becoming both the parent record and an entry
+          // in the recurrences array, and then when we process the RRULE entry later it overwrites the appropriate
+        // fields in the parent record.
+
+          if (curr.recurrenceid != null)
+          {
+
+            // TODO:  Is there ever a case where we have to worry about overwriting an existing entry here?
+
+            // Create a copy of the current object to save in our recurrences array.  (We *could* just do par = curr,
+            // except for the case that we get the RECURRENCE-ID record before the RRULE record.  In that case, we 
+            // would end up with a shared reference that would cause us to overwrite *both* records at the point
+        // that we try and fix up the parent record.)
+            var recurrenceObj = new Object();
+            var key;
+            for (key in curr) {
+              recurrenceObj[key] = curr[key];
+            }
+
+            if (recurrenceObj.recurrences != undefined) {
+              delete recurrenceObj.recurrences;
+            }
+
+
+        // If we don't have an array to store recurrences in yet, create it.
+            if (par[uuid].recurrences === undefined) {
+              par[uuid].recurrences = new Array();
+              }
+
+        // Save off our cloned recurrence object into the array, keyed by date.
+            par[uuid].recurrences[curr.recurrenceid.toISOString()] = recurrenceObj;
+            }
+
+          // One more specific fix - in the case that an RRULE entry shows up after a RECURRENCE-ID entry,
+          // let's make sure to clear the recurrenceid off the parent field.
+          if ((par[uuid].rrule != undefined) && (par[uuid].recurrenceid != undefined))
             {
-            	par[curr.uid] = curr;
-            }
-            else
-            {
-                // If we have multiple ical entries with the same UID, it's either going to be a
-                // modification to a recurrence (RECURRENCE-ID), and/or a significant modification
-                // to the entry (SEQUENCE).
-
-                // TODO: Look into proper sequence logic.
-
-                if (curr.recurrenceid === undefined)
-                {
-                    // If we have the same UID as an existing record, and it *isn't* a specific recurrence ID,
-                    // not quite sure what the correct behaviour should be.  For now, just take the new information
-                    // and merge it with the old record by overwriting only the fields that appear in the new record.
-                    var key;
-                    for (key in curr) {
-                    	par[curr.uid][key] = curr[key];
-                    }
-
-                }
+            delete par[uuid].recurrenceid;
             }
 
-        	// If we have recurrence-id entries, list them as an array of recurrences keyed off of recurrence-id.
-        	// To use - as you're running through the dates of an rrule, you can try looking it up in the recurrences
-        	// array.  If it exists, then use the data from the calendar object in the recurrence instead of the parent
-        	// for that day.
-
-        	// NOTE:  Sometimes the RECURRENCE-ID record will show up *before* the record with the RRULE entry.  In that
-        	// case, what happens is that the RECURRENCE-ID record ends up becoming both the parent record and an entry
-        	// in the recurrences array, and then when we process the RRULE entry later it overwrites the appropriate
-			// fields in the parent record.
-
-        	if (curr.recurrenceid != null)
-        	{
-
-        		// TODO:  Is there ever a case where we have to worry about overwriting an existing entry here?
-
-        		// Create a copy of the current object to save in our recurrences array.  (We *could* just do par = curr,
-        		// except for the case that we get the RECURRENCE-ID record before the RRULE record.  In that case, we 
-        		// would end up with a shared reference that would cause us to overwrite *both* records at the point
-				// that we try and fix up the parent record.)
-        		var recurrenceObj = new Object();
-        		var key;
-        		for (key in curr) {
-        			recurrenceObj[key] = curr[key];
-        		}
-
-        		if (recurrenceObj.recurrences != undefined) {
-        			delete recurrenceObj.recurrences;
-        		}
-
-
-				// If we don't have an array to store recurrences in yet, create it.
-        		if (par[curr.uid].recurrences === undefined) {
-        			par[curr.uid].recurrences = new Array();
-            	}
-
-				// Save off our cloned recurrence object into the array, keyed by date.
-        		par[curr.uid].recurrences[curr.recurrenceid.toISOString()] = recurrenceObj;
-            }
-
-        	// One more specific fix - in the case that an RRULE entry shows up after a RECURRENCE-ID entry,
-        	// let's make sure to clear the recurrenceid off the parent field.
-        	if ((par[curr.uid].rrule != undefined) && (par[curr.uid].recurrenceid != undefined))
-            {
-        		delete par[curr.uid].recurrenceid;
-            }
-
-        }
-        else
-          par[Math.random()*100000] = curr  // Randomly assign ID : TODO - use true GUID
 
         return par
       }
