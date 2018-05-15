@@ -220,12 +220,10 @@
         }
         
         var par = stack.pop()
-
-        if (curr.uid)
-          par[curr.uid] = curr
-        else
-          par[Math.random()*100000] = curr  // Randomly assign ID : TODO - use true GUID
-
+        // assign random uuid as curr.uid not unique
+        var UUID = require('node-uuid');
+        const uuid = UUID.v4()
+        par[uuid] = curr;
         return par
       }
 
